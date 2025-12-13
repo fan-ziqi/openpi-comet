@@ -51,11 +51,9 @@ This codebase contains:
 Please check our [[Report]](https://arxiv.org/abs/2512.10071) for more details.
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/dc74ce89-a3ba-4a5a-81b7-63557e586f09" controls width="720">
+  <video src="https://github.com/user-attachments/assets/2644bb91-76a0-4329-ab83-06c2f04f4395" controls width="720">
   </video>
 </div>
-
-
 
 ## Updates
 
@@ -85,10 +83,10 @@ This finetuning instruction is adapted from the original [openpi repo](https://g
 
 ## Installation
 
-Openpi use [uv](https://docs.astral.sh/uv/) to manage Python dependencies. See the [uv installation instructions](https://docs.astral.sh/uv/getting-started/installation/) to set it up. Once uv is installed, run the following to set up the environment:
+Openpi uses [uv](https://docs.astral.sh/uv/) to manage Python dependencies. See the [uv installation instructions](https://docs.astral.sh/uv/getting-started/installation/) to set it up. Once uv is installed, run the following to set up the environment:
 
 ```bash
-cd baselines/openpi
+cd openpi-comet
 GIT_LFS_SKIP_SMUDGE=1 uv sync
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
 
@@ -154,7 +152,7 @@ uv run scripts/compute_norm_stats.py --config-name pi05_b1k-turning_on_radio
 
 This will create `norm_stats.json` under `assets/pi0_b1k/behavior-1k/2025-challenge-demos`, which will be used to normalize the training data.
 
-After this, update the configs in `src/openpi/training/config.py` to be the task name you want (or None to include all tasks), for example, you can update the configs as follows for the `turning_on_radio` task:
+Update the configs in `src/openpi/training/config.py` to be the task name you want (or None to include all tasks), for example, you can update the configs as follows for the `turning_on_radio` task:
 
 ```python
 TrainConfig(
@@ -170,7 +168,6 @@ TrainConfig(
             behavior_dataset_root="../DATASETS/behavior/2025-challenge-demos",
             tasks=["turning_on_radio"],
             fine_grained_level=0,  # 0: global instruction, 1: subtask instruction, 2: skill instruction
-            train_task_type="regular",  # regular | cumulate | mixture
         ),
     ),
     weight_loader=weight_loaders.CheckpointWeightLoader(
@@ -192,13 +189,10 @@ TrainConfig(
 
 Then run the following command to fintune OpenPi:
 ```bash
-XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run scripts/train_val.py pi05_b1k-turning_on_radio \
-    --exp_name="openpi_$(date +%Y%m%d_%H%M%S)" \
-    --overwrite \
-    --batch_size=64 \
-    --num_train_steps=50000 \
-    --weight_loader.params_path="The Model Path you want to finetune from, e.g., gs://openpi-assets/checkpoints/pi05_base/params \
-    or the checkpoint from our model zoo" # also be configurable in the config
+export XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 
+uv run scripts/train.py \
+    pi05_b1k-turning_on_radio \
+    --exp_name="openpi_$(date +%Y%m%d_%H%M%S)"
 ```
 
 ### Pre-train OpenPi
@@ -225,26 +219,29 @@ python scripts/train_dist.py ${config_name} --exp_name=${exp_name} --overwrite
 
 To perform RFT, you need to first deploy the finetuned checkpoint, and then rollout the episodes in the BEHAVIOR-1K Simulator. We also observe that the `pose perturbator` helps improve the robustness of the RFT Algorithm. 
 
-1. Copy the `openpi_comet/data_generation/rollout/learning` to `BEHAVIOR-1K/OmniGibson/omnigibson/learning`.
-```bash
-cp -r data_generation/rollout/learning/* BEHAVIOR-1K/OmniGibson/omnigibson/learning/
-```
-NOTE: be careful to the latest commit of the BEHAVIOR-1K repo.
+1. Copy the files in `openpi_comet/src/behavior/learning` to `BEHAVIOR-1K/OmniGibson/omnigibson/learning`. Be careful to the latest commit of the BEHAVIOR-1K repo and replace the files in the CheckList:
+
+| Name | Description |
+|-------------------------------|-------------------------------------------------------------------------------------------------------|
+| `configs/base_config.yaml`    | hydra config with additional params, e.g., `env_wrapper`, `perturb_pose`, and `parallel_evaluator`.   |
+| `wrappers/rgb_wrapper.py`     | Full Resolution RGB Wrapper, Helpful for evaluation                                                   |
+| `wrappers/__init__.py`        | Register the RGBWrapper                                                                               |
+| `pose_perturbator.py`         | Pose Perturbator in RFT Rollout                                                                       |
+| `eval_custom.py`              | Custom Evaluation Script                                                                              |
 
 2. Run the RFT rollout in parallel:
 
 ```bash
-python OmniGibson/omnigibson/learning/eval.py policy=websocket \
+python OmniGibson/omnigibson/learning/eval_custom.py policy=websocket \
     save_rollout=true \
     perturb_pose=true \
-    eval_on_train_instances=false \
-    task.name=turning_on_radio \
+    task.name=$TASK_NAME \
     log_path=./outputs/rft \
     use_parallel_evaluator=false \
     parallel_evaluator_start_idx=0 \
     parallel_evaluator_end_idx=10 \
     model.port=8000 \
-    env_wrapper._target_=omnigibson.learning.wrappers.RolloutRGBWrapper
+    env_wrapper._target_=omnigibson.learning.wrappers.RGBWrapper
 ```
 where `parallel_evaluator_start_idx` and `parallel_evaluator_end_idx` are the start and end index of the parallel rollout, we can distribute the rollout to multiple GPUs by splitting the total number of instances into multiple parts.
 
@@ -267,7 +264,14 @@ After finetuning, you can run evaluation by following the steps below:
 
     ```
     source .venv/bin/activate
-    uv run scripts/serve_b1k.py --task_name=$TASK_NAME policy:checkpoint --policy.config=pi0_b1k --policy.dir=$PATH_TO_CKPT
+
+    uv run scripts/serve_b1k.py \
+      --task_name=$TASK_NAME \
+      policy:checkpoint \
+      --control_mode=receeding_horizon \
+      --max_len=32 \
+      --policy.config=pi05_b1k-base \
+      --policy.dir=$PATH_TO_CKPT
     ```
     This opens a connection listening on 0.0.0.0:8000. Please check the `scripts/serve_b1k.py` for more details.
 
@@ -275,10 +279,17 @@ After finetuning, you can run evaluation by following the steps below:
 2. Run the evaluation on BEHAVIOR:
 
     Assume you have behavior env installed (check https://github.com/StanfordVL/BEHAVIOR-1K for more details), run the following command within the BEHAVIOR-1K directory:
-    ```
+    
+    ```bash
     conda activate behavior 
-    python OmniGibson/omnigibson/learning/eval.py policy=websocket task.name=turning_on_radio log_path=$LOG_PATH
+    
+    python OmniGibson/omnigibson/learning/eval.py \
+      policy=websocket \
+      task.name=$TASK_NAME \
+      log_path=$LOG_PATH
+      # env_wrapper._target_=omnigibson.learning.wrappers.RGBWrapper
     ```
+    NOTE: We recommend to use the RGBWrapper for evaluation, please follow the instructions in [Post-train OpenPi using Rejection Sampling fine-tuning (RFT)](#post-train-openpi-using-rejection-sampling-fine-tuning-rft) to add `RGBWrapper` or custom the evaluation script.
 
 
 ## FAQs
@@ -293,10 +304,8 @@ If you find this work useful, please consider citing:
 @article{bai2025openpicometcompetitionsolution,
   title={Openpi Comet: Competition Solution For 2025 BEHAVIOR Challenge}, 
   author={Junjie Bai and Yu-Wei Chao and Qizhi Chen and Jinwei Gu and Moo Jin Kim and Zhaoshuo Li and Xuan Li and Tsung-Yi Lin and Ming-Yu Liu and Nic Ma and Kaichun Mo and Delin Qu and Shangkun Sun and Hongchi Xia and Fangyin Wei and Xiaohui Zeng},
+  journal={arXiv preprint arXiv:2512.10071},
   year={2025},
-  eprint={2512.10071},
-  archivePrefix={arXiv},
-  primaryClass={cs.RO},
   url={https://arxiv.org/abs/2512.10071}, 
 }
 ```

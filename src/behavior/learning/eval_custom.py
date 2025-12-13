@@ -50,9 +50,9 @@ import omnigibson.utils.transform_utils as T
 import torch as th
 
 m = create_module_macros(module_path=__file__)
-m.NUM_EVAL_EPISODES = int(os.environ.get("B1K_NUM_EVAL_EPISODES", 1))
+m.NUM_EVAL_EPISODES = 1
+m.NUM_EVAL_INSTANCES = 10
 m.NUM_TRAIN_INSTANCES = 200
-m.NUM_EVAL_INSTANCES = int(os.environ.get("B1K_NUM_EVAL_INSTANCES", 10))
 
 
 # set global variables to boost performance
@@ -508,6 +508,7 @@ if __name__ == "__main__":
     )
     if config.test_hidden:
         logger.info("You are evaluating on hidden test instances! This is for internal use only.")
+
     # get run instances
     if config.eval_on_train_instances:
         logger.info(
@@ -529,6 +530,7 @@ if __name__ == "__main__":
                 f"eval instance ids must be in range({m.NUM_TRAIN_INSTANCES})"
             )
             instances_to_run = [instances_to_run[i] for i in config.eval_instance_ids]
+
     elif config.test_hidden:
         instances_to_run = (
             config.eval_instance_ids
@@ -538,8 +540,9 @@ if __name__ == "__main__":
         assert set(instances_to_run).issubset(set(range(m.NUM_EVAL_INSTANCES))), (
             f"eval instance ids must be in range({m.NUM_EVAL_INSTANCES})"
         )
+
     else:
-        # use parallel evaluator
+        # parallel evaluator
         if config.use_parallel_evaluator:
             instances_to_run = set(
                 range(config.parallel_evaluator_start_idx, config.parallel_evaluator_end_idx)
@@ -568,6 +571,7 @@ if __name__ == "__main__":
         )
         test_instances = lines[TASK_NAMES_TO_INDICES[config.task.name]][2].strip().split(",")
         instances_to_run = [int(test_instances[i]) for i in instances_to_run]
+
     # establish metrics
     metrics = {}
     metrics_path = Path(config.log_path).expanduser() / "metrics"

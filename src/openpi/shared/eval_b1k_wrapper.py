@@ -1,17 +1,14 @@
-import numpy as np
-import torch
-from openpi_client.base_policy import BasePolicy
-from openpi_client.image_tools import resize_with_pad
 from collections import deque
 import copy
 import json
-import cv2
-
-
-from openpi.shared.client import Client
-
-# create module logger
 import logging
+
+import cv2
+import numpy as np
+from openpi_client.base_policy import BasePolicy
+from openpi_client.image_tools import resize_with_pad
+import torch
+
 logger = logging.getLogger("policy")
 logger.setLevel(20)  # info
 
@@ -27,38 +24,41 @@ The skills are:
 What's the next skill to perform? Only respond with a single skill name.
 """
 
-class B1KPolicyWrapper():
+
+class B1KPolicyWrapper:
     def __init__(
-        self, 
+        self,
         policy: BasePolicy,
-        task_name : str = "turning_on_radio",
-        control_mode : str = "temporal_ensemble",
-        max_len : int = 32,                 # receeding horizon | receeding temporal mode
-        action_horizon : int = 5,           # temporal ensemble mode | receeding temporal mode
-        temporal_ensemble_max : int = 3,    # receeding temporal mode
-        fine_grained_level : int = 0,
+        task_name: str = "turning_on_radio",
+        control_mode: str = "temporal_ensemble",
+        max_len: int = 32,  # receeding horizon | receeding temporal mode
+        action_horizon: int = 5,  # temporal ensemble mode | receeding temporal mode
+        temporal_ensemble_max: int = 3,  # receeding temporal mode
+        fine_grained_level: int = 0,
     ) -> None:
         self.policy = policy
         self.task_name = task_name
 
         # load the task name from the metadata
-        metadata = json.load(open(f"scripts/task_mapping.json"))
-        self.task_prompt = metadata[task_name].get("task")  
+        metadata = json.load(open("scripts/task_mapping.json"))
+        self.task_prompt = metadata[task_name].get("task")
         self.subtask_prompts = metadata[task_name].get("subtask")
         self.skill_prompts = metadata[task_name].get("skill")
 
         self.control_mode = control_mode
-        self.action_queue = deque([], maxlen=action_horizon)
+        self.action_queue = deque(maxlen=action_horizon)
         self.last_action = {"actions": np.zeros((action_horizon, 23), dtype=np.float64)}
         self.action_horizon = action_horizon
-        
-        self.replan_interval = action_horizon # K: replan every 10 steps
-        self.max_len = max_len                # how long the policy sequences are
-        self.temporal_ensemble_max = temporal_ensemble_max        # max number of sequences to ensemble
+
+        self.replan_interval = action_horizon  # K: replan every 10 steps
+        self.max_len = max_len  # how long the policy sequences are
+        self.temporal_ensemble_max = temporal_ensemble_max  # max number of sequences to ensemble
         self.step_counter = 0
-        
+
         self.fine_grained_level = fine_grained_level
         if self.fine_grained_level > 0:
+            from openpi.shared.client import Client
+
             self.reasoner = Client(model="/workspace/model")
         else:
             self.reasoner = None
@@ -75,14 +75,12 @@ class B1KPolicyWrapper():
         logger.info(f"{self.fine_grained_level=}")
         logger.info(f"{self.step_counter=}")
         logger.info(f"{self.action_queue=}")
-
-
         logger.info(f"{self.task_prompt=}")
         logger.info(f"{self.subtask_prompts=}")
         logger.info(f"{self.skill_prompts=}")
 
     def reset(self):
-        self.action_queue = deque([],maxlen=self.action_horizon)
+        self.action_queue = deque(maxlen=self.action_horizon)
         self.last_action = {"actions": np.zeros((self.action_horizon, 23), dtype=np.float64)}
         self.step_counter = 0
         if self.reasoner:
@@ -98,50 +96,52 @@ class B1KPolicyWrapper():
                 resize_with_pad(
                     obs["robot_r1::robot_r1:zed_link:Camera:0::rgb"][None, ..., :3],
                     RESIZE_SIZE,
-                    RESIZE_SIZE
+                    RESIZE_SIZE,
                 ),
                 resize_with_pad(
-                    obs["robot_r1::robot_r1:left_realsense_link:Camera:0::rgb"][None, ..., :3], 
+                    obs["robot_r1::robot_r1:left_realsense_link:Camera:0::rgb"][None, ..., :3],
                     RESIZE_SIZE,
-                    RESIZE_SIZE
+                    RESIZE_SIZE,
                 ),
                 resize_with_pad(
                     obs["robot_r1::robot_r1:right_realsense_link:Camera:0::rgb"][None, ..., :3],
                     RESIZE_SIZE,
-                    RESIZE_SIZE
+                    RESIZE_SIZE,
                 ),
             ],
             axis=1,
         )
 
         if "robot_r1::robot_r1:right_realsense_link:Camera:0::instance_seg" in obs:
-            pass # TODO: add instance segmentation
+            pass  # TODO: add instance segmentation
 
         processed_obs = {
             "observation": img_obs,  # Shape: (1, 3, H, W, C)
             "proprio": prop_state,
         }
-        
+
         if "robot_r1::robot_r1:zed_link:Camera:0::depth_linear" in obs:
             depth_obs = obs["robot_r1::robot_r1:zed_link:Camera:0::depth_linear"]
-            depth_obs = cv2.resize(depth_obs, (DESPTH_RESIZE_SIZE, DESPTH_RESIZE_SIZE), interpolation=cv2.INTER_LINEAR)
+            depth_obs = cv2.resize(
+                depth_obs, (DESPTH_RESIZE_SIZE, DESPTH_RESIZE_SIZE), interpolation=cv2.INTER_LINEAR
+            )
             processed_obs["observation/egocentric_depth"] = depth_obs[None]
-        
+
         # if "robot_r1::robot_r1:left_realsense_link:Camera:0::depth_linear" in obs:
         #     depth_obs = obs["robot_r1::robot_r1:left_realsense_link:Camera:0::depth_linear"][None]
         #     processed_obs["observation/wrist_depth_left"] = depth_obs
-        
+
         # if "robot_r1::robot_r1:right_realsense_link:Camera:0::depth_linear" in obs:
         #     depth_obs = obs["robot_r1::robot_r1:right_realsense_link:Camera:0::depth_linear"][None]
         #     processed_obs["observation/wrist_depth_right"] = depth_obs
-            
+
         return processed_obs
-    
+
     def act_receeding_temporal(self, input_obs):
         # Step 1: check if we should re-run policy
         if self.step_counter % self.replan_interval == 0:
             nbatch = copy.deepcopy(input_obs)
-            if nbatch["observation"].shape[-1] != 3: 
+            if nbatch["observation"].shape[-1] != 3:
                 # make B, num_cameras, H, W, C  from B, num_cameras, C, H, W
                 # permute if pytorch
                 nbatch["observation"] = np.transpose(nbatch["observation"], (0, 1, 3, 4, 2))
@@ -172,12 +172,14 @@ class B1KPolicyWrapper():
                 self.last_action = action
             except Exception as e:
                 action = self.last_action
-                logger.info(f"Error in action prediction at step {self.step_counter}, {joint_positions.shape=}, using last action: {e}")
+                logger.info(
+                    f"Error in action prediction at step {self.step_counter}, {joint_positions.shape=}, using last action: {e}"
+                )
 
             target_joint_positions = action["actions"].copy()
 
             # Add this sequence to action queue
-            new_seq = deque([a for a in target_joint_positions[:self.max_len]])
+            new_seq = deque([a for a in target_joint_positions[: self.max_len]])
             self.action_queue.append(new_seq)
 
             # Optional: limit memory
@@ -188,7 +190,9 @@ class B1KPolicyWrapper():
         if len(self.action_queue) == 0:
             raise ValueError("Action queue empty in receeding_temporal mode.")
 
-        actions_current_timestep = np.empty((len(self.action_queue), self.action_queue[0][0].shape[0]))
+        actions_current_timestep = np.empty(
+            (len(self.action_queue), self.action_queue[0][0].shape[0])
+        )
 
         for i in range(len(self.action_queue)):
             actions_current_timestep[i] = self.action_queue[i].popleft()
@@ -212,12 +216,11 @@ class B1KPolicyWrapper():
 
         return torch.from_numpy(final_action)
 
-
     def act(self, input_obs):
         # TODO reformat data into the correct format for the model
-        # TODO: communicate with justin that we are using numpy to pass the data. Also we are passing in uint8 for images 
+        # TODO: communicate with justin that we are using numpy to pass the data. Also we are passing in uint8 for images
         """
-        Model input expected: 
+        Model input expected:
             📌 Key: observation/exterior_image_1_left
             Type: ndarray
             Dtype: uint8
@@ -236,7 +239,7 @@ class B1KPolicyWrapper():
             📌 Key: prompt
             Type: str
             Value: do something
-        
+
         Model will output:
             📌 Key: actions
             Type: ndarray
@@ -244,17 +247,17 @@ class B1KPolicyWrapper():
             Shape: (10, 16)
         """
         input_obs = self.process_obs(input_obs)
-        if self.control_mode == 'receeding_temporal':
+        if self.control_mode == "receeding_temporal":
             return self.act_receeding_temporal(input_obs)
-        
-        if self.control_mode == 'receeding_horizon':
+
+        if self.control_mode == "receeding_horizon":
             if len(self.action_queue) > 0:
                 # pop the first action in the queue
                 final_action = self.action_queue.popleft()[None]
                 return torch.from_numpy(final_action)
-        
+
         nbatch = copy.deepcopy(input_obs)
-        if nbatch["observation"].shape[-1] != 3: 
+        if nbatch["observation"].shape[-1] != 3:
             # make B, num_cameras, H, W, C  from B, num_cameras, C, H, W
             # permute if pytorch
             nbatch["observation"] = np.transpose(nbatch["observation"], (0, 1, 3, 4, 2))
@@ -282,7 +285,7 @@ class B1KPolicyWrapper():
             batch["prompt"] = reasoner_response
 
         try:
-            action = self.policy.infer(batch) 
+            action = self.policy.infer(batch)
             self.last_action = action
         except Exception as e:
             action = self.last_action
@@ -290,17 +293,19 @@ class B1KPolicyWrapper():
         # convert to absolute action and append gripper command
         # action shape: (10, 23), joint_positions shape: (23,)
         # Need to broadcast joint_positions to match action sequence length
-        target_joint_positions = action["actions"].copy() 
-        if self.control_mode == 'receeding_horizon':
-            self.action_queue = deque([a for a in target_joint_positions[:self.max_len]])
+        target_joint_positions = action["actions"].copy()
+        if self.control_mode == "receeding_horizon":
+            self.action_queue = deque([a for a in target_joint_positions[: self.max_len]])
             final_action = self.action_queue.popleft()[None]
 
         # # temporal emsemble start
-        elif self.control_mode == 'temporal_ensemble':
+        elif self.control_mode == "temporal_ensemble":
             new_actions = deque(target_joint_positions)
             self.action_queue.append(new_actions)
-            actions_current_timestep = np.empty((len(self.action_queue), target_joint_positions.shape[1]))
-            
+            actions_current_timestep = np.empty(
+                (len(self.action_queue), target_joint_positions.shape[1])
+            )
+
             # k = 0.01
             k = 0.005
             for i, q in enumerate(self.action_queue):

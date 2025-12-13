@@ -14,7 +14,7 @@ import openpi.shared.normalize as normalize
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader
 import openpi.transforms as transforms
-import pathlib
+
 
 class RemoveStrings(transforms.DataTransformFn):
     def __call__(self, x: dict) -> dict:
@@ -63,7 +63,9 @@ def create_rlds_dataloader(
     batch_size: int,
     max_frames: int | None = None,
 ) -> tuple[_data_loader.Dataset, int]:
-    dataset = _data_loader.create_rlds_dataset(data_config, action_horizon, batch_size, shuffle=False)
+    dataset = _data_loader.create_rlds_dataset(
+        data_config, action_horizon, batch_size, shuffle=False
+    )
     dataset = _data_loader.IterableTransformedDataset(
         dataset,
         [
@@ -91,24 +93,27 @@ def main(config_name: str, max_frames: int | None = None):
     data_config = config.data.create(config.assets_dirs, config.model)
     if data_config.behavior_dataset_root:
         from omnigibson.learning.datas import BehaviorLerobotDatasetMetadata
+
         from openpi.policies.b1k_policy import extract_state_from_proprio
+
         metadata = BehaviorLerobotDatasetMetadata(
             repo_id=data_config.repo_id,
             root=data_config.behavior_dataset_root,
             tasks=data_config.tasks,
-            modalities=[], 
-            cameras=[]
+            modalities=[],
+            cameras=[],
         )
         stats = metadata.stats
         if data_config.episodes_index is not None:
             from omnigibson.learning.datas import BehaviorLeRobotDataset
+
             dataset = BehaviorLeRobotDataset(
                 repo_id=data_config.repo_id,
                 root=data_config.behavior_dataset_root,
                 tasks=data_config.tasks,
-                modalities=[], 
+                modalities=[],
                 cameras=[],
-                episodes = data_config.episodes_index
+                episodes=data_config.episodes_index,
             )
             stats = dataset.stats
 
@@ -127,7 +132,12 @@ def main(config_name: str, max_frames: int | None = None):
             )
         else:
             data_loader, num_batches = create_torch_dataloader(
-                data_config, config.model.action_horizon, config.batch_size, config.model, config.num_workers, max_frames
+                data_config,
+                config.model.action_horizon,
+                config.batch_size,
+                config.model,
+                config.num_workers,
+                max_frames,
             )
 
         keys = ["state", "actions"]
@@ -145,6 +155,7 @@ def main(config_name: str, max_frames: int | None = None):
         normalize.save(output_path, norm_stats)
     else:
         print(f"b1k_assets_dir exists: {config.b1k_assets_dir}, skipping...")
+
 
 if __name__ == "__main__":
     tyro.cli(main)

@@ -89,13 +89,16 @@ class Observation(Generic[ArrayT]):
 
     # Images, in [-1, 1] float32.
     images: dict[str, at.Float[ArrayT, "*b h w c"]]
+    
     # Image masks, with same keys as images.
     image_masks: dict[str, at.Bool[ArrayT, "*b"]]
+    
     # Low-dimensional robot state.
     state: at.Float[ArrayT, "*b s"]
 
     # Tokenized prompt.
     tokenized_prompt: at.Int[ArrayT, "*b l"] | None = None
+    
     # Tokenized prompt mask.
     tokenized_prompt_mask: at.Bool[ArrayT, "*b l"] | None = None
 
@@ -103,6 +106,7 @@ class Observation(Generic[ArrayT]):
 
     # Token auto-regressive mask (for FAST autoregressive model).
     token_ar_mask: at.Int[ArrayT, "*b l"] | None = None
+    
     # Token loss mask (for FAST autoregressive model).
     token_loss_mask: at.Bool[ArrayT, "*b l"] | None = None
 

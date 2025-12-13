@@ -3,7 +3,6 @@ from .heavy_robot_wrapper import HeavyRobotWrapper
 from .rgb_low_res_wrapper import RGBLowResWrapper
 from .rgb_wrapper import RGBWrapper
 from .rich_obs_wrapper import RichObservationWrapper
-from .rollout_rgb_wrapper import RolloutRGBWrapper
 
 __all__ = [
     "DefaultWrapper",
@@ -11,5 +10,4 @@ __all__ = [
     "RGBLowResWrapper",
     "RGBWrapper",
     "RichObservationWrapper",
-    "RolloutRGBWrapper",
 ]
