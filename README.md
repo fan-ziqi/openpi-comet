@@ -219,7 +219,7 @@ python scripts/train_dist.py ${config_name} --exp_name=${exp_name} --overwrite
 
 To perform RFT, you need to first deploy the finetuned checkpoint, and then rollout the episodes in the BEHAVIOR-1K Simulator. We also observe that the `pose perturbator` helps improve the robustness of the RFT Algorithm. 
 
-1. Copy the files in `openpi_comet/src/behavior/learning` to `BEHAVIOR-1K/OmniGibson/omnigibson/learning`. Be careful to the latest commit of the BEHAVIOR-1K repo and replace the files in the CheckList:
+1. Copy the files in `openpi-comet/src/behavior/learning` to `BEHAVIOR-1K/OmniGibson/omnigibson/learning`. Be careful to the latest commit of the BEHAVIOR-1K repo and replace the files in the CheckList:
 
 | Name | Description |
 |-------------------------------|-------------------------------------------------------------------------------------------------------|
