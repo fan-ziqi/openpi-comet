@@ -80,9 +80,7 @@ class IterableTransformedDataset(IterableDataset[T_co]):
                 batch_size = next(v.shape[0] for v in sample.values())
 
                 # Split batch into individual samples using tree_map
-                individual_samples = [
-                    jax.tree.map(lambda x: x[i], sample) for i in range(batch_size)
-                ]
+                individual_samples = [jax.tree.map(lambda x: x[i], sample) for i in range(batch_size)]
 
                 # Transform each sample
                 transformed = [self._transform(s) for s in individual_samples]
@@ -143,10 +141,7 @@ def create_behavior_dataset(data_config: _config.DataConfig, action_horizon: int
         tasks=data_config.tasks,
         modalities=data_config.modalities,
         local_only=True,
-        delta_timestamps={
-            key: [t / 30.0 for t in range(action_horizon)]
-            for key in data_config.action_sequence_keys
-        },
+        delta_timestamps={key: [t / 30.0 for t in range(action_horizon)] for key in data_config.action_sequence_keys},
         episodes=data_config.episodes_index,
         chunk_streaming_using_keyframe=True,
         shuffle=True,
@@ -167,15 +162,11 @@ def create_multi_behavior_dataset(
 ) -> Dataset:
     from behavior.learning.datas.dataset import MultiBehaviorLeRobotDataset
 
-    datasets = [
-        create_behavior_dataset(data_config, action_horizon) for data_config in data_configs
-    ]
+    datasets = [create_behavior_dataset(data_config, action_horizon) for data_config in data_configs]
     return MultiBehaviorLeRobotDataset(datasets, sample_weights=sample_weights)
 
 
-def transform_dataset(
-    dataset: Dataset, data_config: _config.DataConfig, *, skip_norm_stats: bool = False
-) -> Dataset:
+def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip_norm_stats: bool = False) -> Dataset:
     """Transform the dataset by applying the data transforms."""
     norm_stats = {}
     if data_config.repo_id != "fake" and not skip_norm_stats:
@@ -358,16 +349,26 @@ class TorchDataLoader:
             seed: The seed to use for shuffling the data.
         """
         from behavior.learning.datas.dataset import MultiBehaviorLeRobotDataset
+
         if jax.process_count() > 1:
             logging.info(f"Subsetting dataset for process {jax.process_index()}.")
             if isinstance(dataset._dataset, MultiBehaviorLeRobotDataset):
                 for dataset_index in range(len(dataset._dataset.datasets)):
-                    indices = list(range(jax.process_index(), len(dataset._dataset.datasets[dataset_index]._dataset.chunks), jax.process_count()))
-                    dataset._dataset.datasets[dataset_index]._dataset.chunks = [dataset._dataset.datasets[dataset_index]._dataset.chunks[i] for i in indices]
-                total_chunks = sum(len(dataset._dataset.datasets[dataset_index]._dataset.chunks) for dataset_index in range(len(dataset._dataset.datasets)))
-                logging.info(
-                    f"[P{jax.process_index()}] After subset, Dataset has {total_chunks} chunks."
+                    indices = list(
+                        range(
+                            jax.process_index(),
+                            len(dataset._dataset.datasets[dataset_index]._dataset.chunks),
+                            jax.process_count(),
+                        )
+                    )
+                    dataset._dataset.datasets[dataset_index]._dataset.chunks = [
+                        dataset._dataset.datasets[dataset_index]._dataset.chunks[i] for i in indices
+                    ]
+                total_chunks = sum(
+                    len(dataset._dataset.datasets[dataset_index]._dataset.chunks)
+                    for dataset_index in range(len(dataset._dataset.datasets))
                 )
+                logging.info(f"[P{jax.process_index()}] After subset, Dataset has {total_chunks} chunks.")
             else:
                 indices = list(range(jax.process_index(), len(dataset._dataset._dataset.chunks), jax.process_count()))
                 dataset._dataset._dataset.chunks = [dataset._dataset._dataset.chunks[i] for i in indices]
@@ -429,9 +430,7 @@ class TorchDataLoader:
                 num_items += 1
                 # For JAX, convert to sharded arrays; for PyTorch, return torch tensors
                 if self._sharding is not None:
-                    yield jax.tree.map(
-                        lambda x: jax.make_array_from_process_local_data(self._sharding, x), batch
-                    )
+                    yield jax.tree.map(lambda x: jax.make_array_from_process_local_data(self._sharding, x), batch)
                 else:
                     yield jax.tree.map(torch.as_tensor, batch)
 

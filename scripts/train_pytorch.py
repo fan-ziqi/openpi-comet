@@ -45,7 +45,6 @@ import openpi.models_pytorch.pi0_pytorch
 import openpi.shared.normalize as _normalize
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader
-import openpi.training.sharding as sharding
 
 
 def init_logging():
@@ -131,7 +130,7 @@ def build_datasets(config: _config.TrainConfig):
         action_horizon=config.model.action_horizon,
         batch_size=config.batch_size,
         skip_norm_stats=False,
-        shuffle=True, 
+        shuffle=True,
         num_workers=config.num_workers,
         seed=config.seed,
     )

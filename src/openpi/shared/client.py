@@ -115,9 +115,7 @@ def load_json_from_str(text: str) -> list | dict:
     return json.loads(repaired_text)
 
 
-def generate_stylized_plan(
-    list_of_plans: list[str], current_plan: str, current_plan_completed: bool = False
-) -> str:
+def generate_stylized_plan(list_of_plans: list[str], current_plan: str, current_plan_completed: bool = False) -> str:
     """
     Generate a stylized high-level plan list with status markers.
 
@@ -222,9 +220,7 @@ class Client:
                         {"type": "text", "text": user_prompt},
                         *[
                             {
-                                "type": "image_url"
-                                if not is_video(multi_modal_item)
-                                else "video_url",
+                                "type": "image_url" if not is_video(multi_modal_item) else "video_url",
                                 "image_url" if not is_video(multi_modal_item) else "video_url": {
                                     "url": encode(multi_modal_item, encode_format)
                                 },

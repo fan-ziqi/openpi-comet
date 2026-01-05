@@ -10,9 +10,6 @@ import flax.nnx as nnx
 from flax.training import common_utils
 import flax.traverse_util as traverse_util
 import jax
-
-import time
-
 import jax.experimental
 import jax.numpy as jnp
 import numpy as np
@@ -37,13 +34,15 @@ def _broadcast_str_from_primary(s: str, max_len: int = 512) -> str:
     if jax.process_count() == 1:
         return s
     from jax.experimental.multihost_utils import broadcast_one_to_all
+
     # Encode to fixed-size numpy array
     encoded = np.zeros(max_len, dtype=np.uint8)
-    s_bytes = s.encode('utf-8')[:max_len]
-    encoded[:len(s_bytes)] = list(s_bytes)
+    s_bytes = s.encode("utf-8")[:max_len]
+    encoded[: len(s_bytes)] = list(s_bytes)
     # Broadcast and decode (using int(x) to avoid jax.Array.tobytes() quirks)
     broadcasted = broadcast_one_to_all(encoded)
-    return bytes(int(x) for x in broadcasted).rstrip(b'\x00').decode('utf-8')
+    return bytes(int(x) for x in broadcasted).rstrip(b"\x00").decode("utf-8")
+
 
 def init_logging():
     """Custom logging format for better readability."""
@@ -248,11 +247,7 @@ def main(config: _config.TrainConfig):
         init_wandb(config, resuming=resuming, enabled=config.wandb_enabled)
 
     data_loader = _data_loader.create_behavior_data_loader(
-        config,
-        sharding=data_sharding,
-        shuffle=True,
-        skip_norm_stats=False,
-        seed_shift=int(jax.process_index())
+        config, sharding=data_sharding, shuffle=True, skip_norm_stats=False, seed_shift=int(jax.process_index())
     )
     data_iter = iter(data_loader)
     batch = next(data_iter)

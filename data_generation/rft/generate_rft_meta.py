@@ -2,50 +2,49 @@
 import argparse
 import json
 import os
-from typing import Tuple
 
 import numpy as np
-import pandas as pd
 from omnigibson.learning.utils.eval_utils import PROPRIOCEPTION_INDICES
+import pandas as pd
 from tqdm import tqdm
 
 
 def generate_task_json(jsonl: str, tasks_jsonl: str) -> int:
     # read index file
-    with open(jsonl, "r") as f:
+    with open(jsonl) as f:
         lines = f.readlines()
-    
+
     # convert episode index to task index
     all_tasks = set()
     for line in lines:
         _, episode_id = line.strip().split(" ")
         task_index = int(episode_id) // 10000
         all_tasks.add(task_index)
-    
+
     # read tasks jsonl
-    with open(tasks_jsonl, "r") as f:
+    with open(tasks_jsonl) as f:
         tasks = [json.loads(line) for line in f]
-    
+
     # keep only tasks that are in the index
     task_json = []
     for task in tasks:
         if task["task_index"] in all_tasks:
             task_json.append(task)
-    
+
     with open(f"{data_dir}/meta/tasks.jsonl", "w") as f:
         for task in task_json:
             json.dump(task, f)
             f.write("\n")
-    
+
     num_tasks = len(task_json)
     print(f"Generated task JSON for {num_tasks} tasks.")
     return num_tasks
 
 
-def generate_episode_json(data_dir: str, robot_type: str = "R1Pro") -> Tuple[int, int]:
+def generate_episode_json(data_dir: str, robot_type: str = "R1Pro") -> tuple[int, int]:
     assert os.path.exists(f"{data_dir}/meta/tasks.jsonl"), "Task JSON does not exist!"
     assert os.path.exists(f"{data_dir}/meta/episodes"), "Episode metadata directory does not exist!"
-    with open(f"{data_dir}/meta/tasks.jsonl", "r") as f:
+    with open(f"{data_dir}/meta/tasks.jsonl") as f:
         task_json = [json.loads(line) for line in f]
     num_frames = 0
     num_episodes = 0
@@ -57,7 +56,7 @@ def generate_episode_json(data_dir: str, robot_type: str = "R1Pro") -> Tuple[int
                 if not os.path.exists(f"{data_dir}/meta/episodes/task-{task_index:04d}"):
                     continue
                 for episode_name in tqdm(sorted(os.listdir(f"{data_dir}/meta/episodes/task-{task_index:04d}"))):
-                    with open(f"{data_dir}/meta/episodes/task-{task_index:04d}/{episode_name}", "r") as f:
+                    with open(f"{data_dir}/meta/episodes/task-{task_index:04d}/{episode_name}") as f:
                         episode_info = json.load(f)
                         episode_index = int(episode_name.split(".")[0].split("_")[-1])
                         # load the corresponding parquet file

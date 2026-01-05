@@ -7,7 +7,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Tuple, cast, Dict
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -17,9 +17,9 @@ TRIM_FRAMES = 15
 DEFAULT_FPS = 30
 
 
-def load_task_mapping(tasks_jsonl_path: str) -> Dict[str, int]:
-    task_name_to_index: Dict[str, int] = {}
-    with open(tasks_jsonl_path, "r") as f:
+def load_task_mapping(tasks_jsonl_path: str) -> dict[str, int]:
+    task_name_to_index: dict[str, int] = {}
+    with open(tasks_jsonl_path) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -37,7 +37,7 @@ def read_task_name_from_exp(exp_dir: str) -> str | None:
         if fname.startswith("cfg") and fname.endswith(".out"):
             path = os.path.join(exp_dir, fname)
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     for line in f:
                         line = line.strip()
                         if line.startswith("task_name="):
@@ -51,13 +51,13 @@ def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
-def parse_jsonl_line(line: str) -> Tuple[str, int]:
+def parse_jsonl_line(line: str) -> tuple[str, int]:
     # "<date>/<exp>/<run> <episode_id>"
     rel, eid_str = line.strip().rsplit(" ", 1)
     return rel, int(eid_str)
 
 
-def load_npz_state_action(npz_path: str) -> Tuple[np.ndarray, np.ndarray]:
+def load_npz_state_action(npz_path: str) -> tuple[np.ndarray, np.ndarray]:
     arr = np.load(npz_path, allow_pickle=True)
     # Updated format:
     # arr_0 is a 0-d object array holding a dict with 'state' and 'action'
@@ -145,7 +145,7 @@ def copy_and_update_annotation(
     dst_dir = os.path.join(out_root, "annotations", task_id_str)
     ensure_dir_fs(dst_dir)
     dst = os.path.join(dst_dir, f"episode_{episode_id:08d}.json")
-    with open(src, "r") as f:
+    with open(src) as f:
         ann = json.load(f)
     # Update meta_data durations
     ann.setdefault("meta_data", {})
@@ -194,7 +194,7 @@ def trim_and_copy_videos(
         dst_dir = os.path.join(out_root, *path_parts[:-1])
         ensure_dir_fs(dst_dir)
         dst = os.path.join(dst_dir, path_parts[-1])
-        
+
         # Local destination: write to a tmp then move
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         with tempfile.TemporaryDirectory() as td:
@@ -262,11 +262,11 @@ def all_outputs_exist(out_root: str, task_index: int, episode_id: int) -> bool:
 
 
 def process_job(
-    job: Dict[str, object],
+    job: dict[str, object],
     *,
     final_out_root: str,
     template_root: str,
-) -> Tuple[str, int, str]:
+) -> tuple[str, int, str]:
     rel = cast(str, job["rel"])
     episode_id = int(cast(int, job["episode_id"]))
     run_dir = cast(str, job["run_dir"])
@@ -345,8 +345,8 @@ def main():
     ensure_dir_fs(final_out_root)
 
     # Build jobs list
-    jobs: List[Dict[str, object]] = []
-    with open(args.jsonl, "r") as f:
+    jobs: list[dict[str, object]] = []
+    with open(args.jsonl) as f:
         for raw in f:
             raw = raw.strip()
             if not raw:

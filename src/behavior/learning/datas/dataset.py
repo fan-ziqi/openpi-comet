@@ -145,9 +145,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         if modalities is None:
             modalities = ["rgb", "depth", "seg_instance_id"]
         if "seg_instance_id" in modalities:
-            assert chunk_streaming_using_keyframe, (
-                "For the sake of data loading speed, please use chunk_streaming_using_keyframe=True when loading segmentation instance ID videos."
-            )
+            assert chunk_streaming_using_keyframe, "For the sake of data loading speed, please use chunk_streaming_using_keyframe=True when loading segmentation instance ID videos."
         if "depth" in modalities:
             assert self.video_backend == "pyav", (
                 "Depth videos can only be decoded with the 'pyav' backend. "
@@ -178,9 +176,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         for task_id, ep_indices in epi_by_task.items():
             epi_by_task[task_id] = sorted(ep_indices)
             if episodes is not None:
-                epi_by_task[task_id] = [
-                    epi_by_task[task_id][i] for i in episodes if i < len(epi_by_task[task_id])
-                ]
+                epi_by_task[task_id] = [epi_by_task[task_id][i] for i in episodes if i < len(epi_by_task[task_id])]
         # now put episodes back together
         self.episodes = sorted([ep for eps in epi_by_task.values() for ep in eps])
         # handle streaming mode and shuffling of episodes
@@ -230,9 +226,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
             timestamps = th.stack(self.hf_dataset["timestamp"]).numpy()
             episode_indices = th.stack(self.hf_dataset["episode_index"]).numpy()
             ep_data_index_np = {k: t.numpy() for k, t in self.episode_data_index.items()}
-            check_timestamps_sync(
-                timestamps, episode_indices, ep_data_index_np, self.fps, self.tolerance_s
-            )
+            check_timestamps_sync(timestamps, episode_indices, ep_data_index_np, self.fps, self.tolerance_s)
 
         # Setup delta_indices
         if self.delta_timestamps is not None:
@@ -251,9 +245,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         self.task_sizes = {}
         try:
             for ep_id, ep_orch in self.meta.orchestrators.items():
-                self.task_sizes[ep_id] = [
-                    task_info["end_frame"] for task_info in ep_orch[fine_grained_level]
-                ]
+                self.task_sizes[ep_id] = [task_info["end_frame"] for task_info in ep_orch[fine_grained_level]]
         except Exception as e:
             print(f"[warn] {self.repo_id} failed to calculate episode subtask cumulate: {e}")
 
@@ -335,9 +327,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
             path = str(self.root / "data")
             hf_dataset = load_dataset("parquet", data_dir=path, split="train")
         else:
-            files = [
-                str(self.root / self.meta.get_data_file_path(ep_idx)) for ep_idx in self.episodes
-            ]
+            files = [str(self.root / self.meta.get_data_file_path(ep_idx)) for ep_idx in self.episodes]
             hf_dataset = load_dataset("parquet", data_files=files, split="train")
 
         hf_dataset.set_transform(hf_transform_to_torch)
@@ -363,21 +353,14 @@ class BehaviorLeRobotDataset(LeRobotDataset):
                 self._active_chunks = worker_chunks
             rng = np.random.default_rng(self.seed + worker_id)
             self.current_streaming_chunk_idx = rng.integers(0, len(self._active_chunks)).item()
-            self.current_streaming_frame_idx = self._active_chunks[
-                self.current_streaming_chunk_idx
-            ][0]
+            self.current_streaming_frame_idx = self._active_chunks[self.current_streaming_chunk_idx][0]
         # Current chunk iterated, move to next chunk
-        if (
-            self.current_streaming_frame_idx
-            >= self._active_chunks[self.current_streaming_chunk_idx][1]
-        ):
+        if self.current_streaming_frame_idx >= self._active_chunks[self.current_streaming_chunk_idx][1]:
             self.current_streaming_chunk_idx += 1
             # All data iterated, restart from beginning
             if self.current_streaming_chunk_idx >= len(self._active_chunks):
                 self.current_streaming_chunk_idx = 0
-            self.current_streaming_frame_idx = self._active_chunks[
-                self.current_streaming_chunk_idx
-            ][0]
+            self.current_streaming_frame_idx = self._active_chunks[self.current_streaming_chunk_idx][0]
             self._should_obs_loaders_reload = True
         item = self.hf_dataset[self.current_streaming_frame_idx]
         item.pop("observation.task_info")
@@ -395,24 +378,17 @@ class BehaviorLeRobotDataset(LeRobotDataset):
                 if "seg_instance_id" in vid_key:
                     # load id list
                     with open(
-                        self.root
-                        / "meta/episodes"
-                        / f"task-{task_id:04d}"
-                        / f"episode_{ep_idx:08d}.json",
+                        self.root / "meta/episodes" / f"task-{task_id:04d}" / f"episode_{ep_idx:08d}.json",
                     ) as f:
                         meta = json.load(f)
                         instance_id_mapping = json.loads(meta["ins_id_mapping"])
                         instance_id_mapping = {int(k): v for k, v in instance_id_mapping.items()}
                         self.omnigibson_mapping[ep_idx]["instance_id_mapping"] = instance_id_mapping
-                        self.omnigibson_mapping[ep_idx]["unique_ins_ids"][
-                            vid_key.split(".")[-1]
-                        ] = meta[
+                        self.omnigibson_mapping[ep_idx]["unique_ins_ids"][vid_key.split(".")[-1]] = meta[
                             f"{ROBOT_CAMERA_NAMES['R1Pro'][vid_key.split('.')[-1]]}::unique_ins_ids"
                         ]
                         kwargs["id_list"] = th.tensor(
-                            self.omnigibson_mapping[ep_idx]["unique_ins_ids"][
-                                vid_key.split(".")[-1]
-                            ]
+                            self.omnigibson_mapping[ep_idx]["unique_ins_ids"][vid_key.split(".")[-1]]
                         )
                 if "rgb" in vid_key:
                     kwargs["train_rgb_type"] = self.train_rgb_type
@@ -433,9 +409,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
 
         query_indices = None
         if self.delta_indices is not None:
-            query_indices, padding = self._get_query_indices(
-                self.current_streaming_frame_idx, ep_idx
-            )
+            query_indices, padding = self._get_query_indices(self.current_streaming_frame_idx, ep_idx)
             query_result = self._query_hf_dataset(query_indices)
             item = {**item, **padding}
             for key, val in query_result.items():
@@ -457,18 +431,12 @@ class BehaviorLeRobotDataset(LeRobotDataset):
                 seg_instance, instance_mapping = instance_id_to_instance(
                     obs=item[key],
                     instance_id_mapping=self.omnigibson_mapping[ep_idx]["instance_id_mapping"],
-                    unique_ins_ids=np.array(
-                        self.omnigibson_mapping[ep_idx]["unique_ins_ids"][key.split(".")[-1]]
-                    ),
+                    unique_ins_ids=np.array(self.omnigibson_mapping[ep_idx]["unique_ins_ids"][key.split(".")[-1]]),
                 )
-                instance_mapping = {
-                    instance_name: id for id, instance_name in instance_mapping.items()
-                }
+                instance_mapping = {instance_name: id for id, instance_name in instance_mapping.items()}
 
                 frame_index = round(item["timestamp"].item() * self.fps)
-                sub_idx = bisect.bisect_right(
-                    self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1
-                )
+                sub_idx = bisect.bisect_right(self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1)
                 skill_annotation = self.meta.annotations[ep_idx]["skill_annotation"]
                 relative_obj_names = skill_annotation[sub_idx]["object_id"][0]
                 for i, relative_obj_name in enumerate(relative_obj_names):
@@ -492,9 +460,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
     def _get_current_task_skill(self, item: dict) -> str:
         ep_idx = item["episode_index"].item()
         frame_index = round(item["timestamp"].item() * self.fps)
-        sub_idx = bisect.bisect_right(
-            self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1
-        )
+        sub_idx = bisect.bisect_right(self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1)
         task_skill = self.meta.orchestrators[ep_idx][1][sub_idx]["task"]
         return task_skill
 
@@ -503,9 +469,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         task_idx = item["task_index"].item()
         frame_index = round(item["timestamp"].item() * self.fps)
         try:
-            sub_idx = bisect.bisect_right(
-                self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1
-            )
+            sub_idx = bisect.bisect_right(self.task_sizes[ep_idx], frame_index, hi=len(self.task_sizes[ep_idx]) - 1)
             task_text = self.meta.orchestrators[ep_idx][self.fine_grained_level][sub_idx]["task"]
 
         except Exception as e:
@@ -523,18 +487,13 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         }
         padding = {  # Pad values outside of current episode range
             f"{key}_is_pad": th.BoolTensor(
-                [
-                    (idx + delta < ep_start.item()) | (idx + delta >= ep_end.item())
-                    for delta in delta_idx
-                ]
+                [(idx + delta < ep_start.item()) | (idx + delta >= ep_end.item()) for delta in delta_idx]
             )
             for key, delta_idx in self.delta_indices.items()
         }
         return query_indices, padding
 
-    def _query_videos(
-        self, query_timestamps: dict[str, list[float]], ep_idx: int
-    ) -> dict[str, th.Tensor]:
+    def _query_videos(self, query_timestamps: dict[str, list[float]], ep_idx: int) -> dict[str, th.Tensor]:
         """Note: When using data workers (e.g. DataLoader with num_workers>0), do not call this function
         in the main process (e.g. by using a second Dataloader with num_workers=0). It will result in a
         Segmentation Fault. This probably happens because a memory reference to the video loader is created in
@@ -556,9 +515,7 @@ class BehaviorLeRobotDataset(LeRobotDataset):
         Returns:
             List of tuples, where each tuple contains (start_index, end_index, local_start_index) for each chunk.
         """
-        episode_lengths = {
-            ep_idx: ep_dict["length"] for ep_idx, ep_dict in self.meta.episodes.items()
-        }
+        episode_lengths = {ep_idx: ep_dict["length"] for ep_idx, ep_dict in self.meta.episodes.items()}
         episode_lengths = [episode_lengths[ep_idx] for ep_idx in self.episodes]
         chunks = []
         offset = 0
@@ -591,17 +548,15 @@ class BehaviorLerobotDatasetMetadata(LeRobotDatasetMetadata):
         cameras: Iterable[str] = None,
     ):
         # ========== Customizations ==========
-        self.task_name_candidates = (
-            set(tasks) if tasks is not None else set(TASK_NAMES_TO_INDICES.keys())
-        )
+        self.task_name_candidates = set(tasks) if tasks is not None else set(TASK_NAMES_TO_INDICES.keys())
         self.modalities = set(modalities)
         self.camera_names = set(cameras)
-        assert self.modalities.issubset({"rgb", "depth", "seg_instance_id"}), (
-            f"Modalities must be a subset of ['rgb', 'depth', 'seg_instance_id'], but got {self.modalities}"
-        )
-        assert self.camera_names.issubset(ROBOT_CAMERA_NAMES["R1Pro"]), (
-            f"Camera names must be a subset of {ROBOT_CAMERA_NAMES['R1Pro']}, but got {self.camera_names}"
-        )
+        assert self.modalities.issubset(
+            {"rgb", "depth", "seg_instance_id"}
+        ), f"Modalities must be a subset of ['rgb', 'depth', 'seg_instance_id'], but got {self.modalities}"
+        assert self.camera_names.issubset(
+            ROBOT_CAMERA_NAMES["R1Pro"]
+        ), f"Camera names must be a subset of {ROBOT_CAMERA_NAMES['R1Pro']}, but got {self.camera_names}"
         # ===================================
 
         self.repo_id = repo_id
@@ -625,9 +580,7 @@ class BehaviorLerobotDatasetMetadata(LeRobotDatasetMetadata):
         check_version_compatibility(self.repo_id, self._version, CODEBASE_VERSION)
         self.tasks, self.task_to_task_index, self.task_names = self.load_tasks(self.root)
         # filter based on self.task_name_candidates
-        valid_task_indices = [
-            idx for idx, name in self.task_names.items() if name in self.task_name_candidates
-        ]
+        valid_task_indices = [idx for idx, name in self.task_names.items() if name in self.task_name_candidates]
         self.task_names = set([self.task_names[idx] for idx in valid_task_indices])
         self.tasks = {idx: self.tasks[idx] for idx in valid_task_indices}
         self.task_to_task_index = {v: k for k, v in self.tasks.items()}
@@ -645,14 +598,8 @@ class BehaviorLerobotDatasetMetadata(LeRobotDatasetMetadata):
 
     def load_tasks(self, local_dir: Path) -> tuple[dict, dict]:
         tasks = load_jsonlines(local_dir / TASKS_PATH)
-        task_names = {
-            item["task_index"]: item["task_name"]
-            for item in sorted(tasks, key=lambda x: x["task_index"])
-        }
-        tasks = {
-            item["task_index"]: item["task"]
-            for item in sorted(tasks, key=lambda x: x["task_index"])
-        }
+        task_names = {item["task_index"]: item["task_name"] for item in sorted(tasks, key=lambda x: x["task_index"])}
+        tasks = {item["task_index"]: item["task"] for item in sorted(tasks, key=lambda x: x["task_index"])}
         task_to_task_index = {task: task_index for task_index, task in tasks.items()}
         return tasks, task_to_task_index, task_names
 
@@ -702,9 +649,7 @@ class BehaviorLerobotDatasetMetadata(LeRobotDatasetMetadata):
                             int(episode.stem[8:]): load_orchestrators_data(
                                 episode, self.episodes[int(episode.stem[8:])]["length"]
                             )
-                            for episode in sorted(
-                                (orchestrators_path / f"task-{task:04d}").iterdir()
-                            )
+                            for episode in sorted((orchestrators_path / f"task-{task:04d}").iterdir())
                         }
                     )
         return orchestrators
@@ -799,9 +744,7 @@ def load_orchestrators_data(episode_path_or_level_0_task, episode_len):
                     }
                 )
     except Exception as e:
-        print(
-            f"[warn] {episode_path} failed to load orchestrators data: {e}, falling back to default task."
-        )
+        print(f"[warn] {episode_path} failed to load orchestrators data: {e}, falling back to default task.")
         for i in range(len(output_data)):
             output_data[i] = output_data[0]
     return output_data
@@ -823,14 +766,10 @@ def skill_weight(cur_skill, skill_list: list[str]) -> float:
 
 
 class MultiBehaviorLeRobotDataset:
-    def __init__(
-        self, datasets: list[BehaviorLeRobotDataset], sample_weights: list[float] | None = None
-    ):
+    def __init__(self, datasets: list[BehaviorLeRobotDataset], sample_weights: list[float] | None = None):
         if sample_weights is None:
             sample_weights = [1.0 / len(datasets)] * len(datasets)
-        assert len(datasets) == len(sample_weights), (
-            "Length of datasets and sample weights must be the same"
-        )
+        assert len(datasets) == len(sample_weights), "Length of datasets and sample weights must be the same"
         if sum(sample_weights) != 1.0:
             sample_weights = [weight / sum(sample_weights) for weight in sample_weights]
 

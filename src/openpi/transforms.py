@@ -144,6 +144,7 @@ class Normalize(DataTransformFn):
         q01, q99 = stats.q01[..., : x.shape[-1]], stats.q99[..., : x.shape[-1]]
         return (x - q01) / (q99 - q01 + 1e-6) * 2.0 - 1.0
 
+
 @dataclasses.dataclass(frozen=True)
 class Unnormalize(DataTransformFn):
     norm_stats: at.PyTree[NormStats] | None
@@ -243,10 +244,10 @@ class AbsoluteActions(DataTransformFn):
 
         return data
 
+
 @dataclasses.dataclass(frozen=True)
 class ArrangeStateActions(DataTransformFn):
-    """Rearranges action dimensions according to the provided indices.
-    """
+    """Rearranges action dimensions according to the provided indices."""
 
     # Indices for reindexing the action dimensions. Length can be smaller than the actual
     # number of dimensions. Only the first len(indices) dimensions will be rearranged.
@@ -256,14 +257,14 @@ class ArrangeStateActions(DataTransformFn):
     def __call__(self, data: DataDict) -> DataDict:
         if self.indices is None:
             return data
-        
+
         dims = len(self.indices)
 
         if "actions" in data:
             actions = data["actions"]
             actions[..., :dims] = actions[..., self.indices]
             data["actions"] = actions
-        
+
         if "state" in data:
             state = data["state"]
             state[..., :dims] = state[..., self.indices]
@@ -290,17 +291,18 @@ class RearrangeStateActions(DataTransformFn):
             return data
 
         dims = len(self.reindices)
-        
+
         if "actions" in data:
             actions = data["actions"].copy()
             actions[..., :dims] = actions[..., self.reindices]
             data["actions"] = actions
-        
+
         if "state" in data:
             state = data["state"].copy()
             state[..., :dims] = state[..., self.reindices]
             data["state"] = state
         return data
+
 
 @dataclasses.dataclass(frozen=True)
 class TokenizePrompt(DataTransformFn):
@@ -380,9 +382,11 @@ class PromptFromLeRobotTask(DataTransformFn):
 
         return {**data, "prompt": prompt}
 
+
 @dataclasses.dataclass(frozen=True)
 class PromptFromLeRobotItem(DataTransformFn):
     """Extracts a prompt from the current LeRobot dataset task."""
+
     def __call__(self, data: DataDict) -> DataDict:
         return {**data, "prompt": data.pop("task")}
 

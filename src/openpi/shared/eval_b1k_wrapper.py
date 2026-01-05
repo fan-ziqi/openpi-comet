@@ -122,9 +122,7 @@ class B1KPolicyWrapper:
 
         if "robot_r1::robot_r1:zed_link:Camera:0::depth_linear" in obs:
             depth_obs = obs["robot_r1::robot_r1:zed_link:Camera:0::depth_linear"]
-            depth_obs = cv2.resize(
-                depth_obs, (DESPTH_RESIZE_SIZE, DESPTH_RESIZE_SIZE), interpolation=cv2.INTER_LINEAR
-            )
+            depth_obs = cv2.resize(depth_obs, (DESPTH_RESIZE_SIZE, DESPTH_RESIZE_SIZE), interpolation=cv2.INTER_LINEAR)
             processed_obs["observation/egocentric_depth"] = depth_obs[None]
 
         # if "robot_r1::robot_r1:left_realsense_link:Camera:0::depth_linear" in obs:
@@ -190,9 +188,7 @@ class B1KPolicyWrapper:
         if len(self.action_queue) == 0:
             raise ValueError("Action queue empty in receeding_temporal mode.")
 
-        actions_current_timestep = np.empty(
-            (len(self.action_queue), self.action_queue[0][0].shape[0])
-        )
+        actions_current_timestep = np.empty((len(self.action_queue), self.action_queue[0][0].shape[0]))
 
         for i in range(len(self.action_queue)):
             actions_current_timestep[i] = self.action_queue[i].popleft()
@@ -302,9 +298,7 @@ class B1KPolicyWrapper:
         elif self.control_mode == "temporal_ensemble":
             new_actions = deque(target_joint_positions)
             self.action_queue.append(new_actions)
-            actions_current_timestep = np.empty(
-                (len(self.action_queue), target_joint_positions.shape[1])
-            )
+            actions_current_timestep = np.empty((len(self.action_queue), target_joint_positions.shape[1]))
 
             # k = 0.01
             k = 0.005

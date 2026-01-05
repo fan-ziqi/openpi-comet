@@ -63,9 +63,7 @@ def create_rlds_dataloader(
     batch_size: int,
     max_frames: int | None = None,
 ) -> tuple[_data_loader.Dataset, int]:
-    dataset = _data_loader.create_rlds_dataset(
-        data_config, action_horizon, batch_size, shuffle=False
-    )
+    dataset = _data_loader.create_rlds_dataset(data_config, action_horizon, batch_size, shuffle=False)
     dataset = _data_loader.IterableTransformedDataset(
         dataset,
         [
@@ -125,9 +123,7 @@ def main(config_name: str, max_frames: int | None = None):
             norm_stats["state"][key] = transforms.pad_to_dim(
                 extract_state_from_proprio(stats["observation.state"][key]), config.model.action_dim
             )
-            norm_stats["actions"][key] = transforms.pad_to_dim(
-                stats["action"][key], config.model.action_dim
-            )
+            norm_stats["actions"][key] = transforms.pad_to_dim(stats["action"][key], config.model.action_dim)
     else:
         if data_config.rlds_data_dir is not None:
             data_loader, num_batches = create_rlds_dataloader(

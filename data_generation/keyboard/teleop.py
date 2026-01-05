@@ -14,13 +14,13 @@ Controls:
 - Quit: ESC or Ctrl+C
 """
 
-import os
-import sys
 import argparse
+import os
+from pathlib import Path
+import sys
+
 import cv2
 import numpy as np
-from pathlib import Path
-from typing import Optional, Tuple
 
 try:
     import omnigibson as og
@@ -31,24 +31,29 @@ except ImportError:
 
 
 try:
-    from telemoma.configs.base_config import teleop_config
     from omnigibson.utils.teleop_utils import TeleopSystem
+    from telemoma.configs.base_config import teleop_config
 except ImportError as e:
     print("ERROR: TeleMoMa not found. Install it with: pip install telemoma")
     print(f"Details: {e}")
     sys.exit(1)
 
 try:
+    import logging
+    import queue
+    import threading
+
     from av.container import Container
     from av.stream import Stream
-    from omnigibson.learning.utils.obs_utils import create_video_writer, write_video
-    from omnigibson.learning.utils.eval_utils import ROBOT_CAMERA_NAMES, flatten_obs_dict
+    from flask import Flask
+    from flask import Response
+    from flask import render_template_string
+    from omnigibson.learning.utils.eval_utils import ROBOT_CAMERA_NAMES
+    from omnigibson.learning.utils.eval_utils import flatten_obs_dict
+    from omnigibson.learning.utils.obs_utils import create_video_writer
+    from omnigibson.learning.utils.obs_utils import write_video
     import omnigibson.utils.transform_utils as T
-    from flask import Flask, Response, render_template_string
     from werkzeug.serving import WSGIRequestHandler
-    import threading
-    import queue
-    import logging
 except ImportError as e:
     print(f"WARNING: Some video utilities not found. Video recording may not work: {e}")
 
@@ -194,16 +199,16 @@ class VideoStreamer:
         self.server_thread = threading.Thread(target=run_server, daemon=True)
         self.server_thread.start()
 
-        print("")
+        print()
         print("=" * 60)
-        print(f"Video streaming server started!")
+        print("Video streaming server started!")
         print(f"   Open browser: http://localhost:{self.port}")
         print("=" * 60)
-        print("")
+        print()
 
     def stop(self):
         """Stop the streaming server."""
-        pass  # Daemon thread will terminate with main program
+        # Daemon thread will terminate with main program
 
 
 class TeleopController:
@@ -213,11 +218,11 @@ class TeleopController:
         self,
         task_name: str,
         headless: bool = False,
-        behavior_base: Optional[str] = None,
+        behavior_base: str | None = None,
         show_marker: bool = True,
-        max_steps: Optional[int] = None,
+        max_steps: int | None = None,
         write_video: bool = True,
-        log_path: Optional[str] = None,
+        log_path: str | None = None,
         stream_port: int = 5000,
     ):
         """
@@ -262,7 +267,7 @@ class TeleopController:
         gm.ENABLE_FLATCACHE = True
 
         print("=" * 80)
-        print(f"Initializing BEHAVIOR-1K Teleoperation")
+        print("Initializing BEHAVIOR-1K Teleoperation")
         print("=" * 80)
         print(f"Task: {task_name}")
         print(f"Headless mode: {headless}")
@@ -294,10 +299,8 @@ class TeleopController:
         print(f"Loading task: {self.task_name}")
 
         # Import required utilities
-        from gello.robots.sim_robot.og_teleop_utils import (
-            load_available_tasks,
-            generate_basic_environment_config,
-        )
+        from gello.robots.sim_robot.og_teleop_utils import generate_basic_environment_config
+        from gello.robots.sim_robot.og_teleop_utils import load_available_tasks
         from omnigibson.learning.utils.eval_utils import PROPRIOCEPTION_INDICES
 
         # Load available tasks and get task config
@@ -431,12 +434,12 @@ class TeleopController:
         print("=" * 80 + "\n")
 
     @property
-    def video_writer(self) -> Tuple[Container, Stream]:
+    def video_writer(self) -> tuple[Container, Stream]:
         """Returns the video writer for the current teleoperation session."""
         return self._video_writer
 
     @video_writer.setter
-    def video_writer(self, video_writer: Tuple[Container, Stream]) -> None:
+    def video_writer(self, video_writer: tuple[Container, Stream]) -> None:
         """Sets the video writer and closes the previous one if exists."""
         if self._video_writer is not None:
             (container, stream) = self._video_writer
@@ -602,7 +605,7 @@ class TeleopController:
             print("TELEOPERATION STARTED - Control the robot with your keyboard!")
             print("=" * 80)
             print(f"Task: {self.task_name}")
-            print(f"Press ESC to quit")
+            print("Press ESC to quit")
             print("=" * 80 + "\n")
 
             step_count = 0
@@ -653,9 +656,9 @@ class TeleopController:
                     print(f"  Success: {'✓ YES' if success else '✗ NO'}")
                     print(f"  Reward: {reward:.3f}")
                     if terminated:
-                        print(f"  Reason: Task completed")
+                        print("  Reason: Task completed")
                     elif truncated:
-                        print(f"  Reason: Time limit reached")
+                        print("  Reason: Time limit reached")
                     print("=" * 80)
 
                     # Ask user if they want to continue

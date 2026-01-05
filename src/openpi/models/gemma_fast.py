@@ -90,12 +90,8 @@ class RMSNorm(nn.Module):
     def __call__(self, x):
         dtype = x.dtype  # original dtype, could be half-precision
         scale = self.param("scale", nn.initializers.zeros_init(), (x.shape[-1]))
-        var = jnp.mean(
-            jnp.square(x.astype(jnp.float32)), axis=-1, keepdims=True
-        )  # compute variance in float32
-        normed_inputs = jnp.asarray(
-            x * jnp.reciprocal(jnp.sqrt(var + 1e-06))
-        )  # compute normalization in float32
+        var = jnp.mean(jnp.square(x.astype(jnp.float32)), axis=-1, keepdims=True)  # compute variance in float32
+        normed_inputs = jnp.asarray(x * jnp.reciprocal(jnp.sqrt(var + 1e-06)))  # compute normalization in float32
         normed_inputs = normed_inputs * (
             1 + scale
         )  # scale by learned parameter in float32 (matches Flax implementation)
@@ -241,9 +237,7 @@ class Block(nn.Module):
     dropout: float = 0.0
     dropout_bdims: tuple[int, ...] = ()
     cache_dtype: str | None = None
-    lora_configs: ml_collections.ConfigDict = dataclasses.field(
-        default_factory=ml_collections.ConfigDict
-    )
+    lora_configs: ml_collections.ConfigDict = dataclasses.field(default_factory=ml_collections.ConfigDict)
 
     def setup(self):
         self.pre_attention_norm = RMSNorm()
@@ -270,9 +264,7 @@ class Block(nn.Module):
     def __call__(self, x, kv_cache, positions, attn_mask, decode, deterministic=True):  # noqa: FBT002
         x = nn.with_logical_constraint(x, ("act_batch", "act_len", "act_emb"))
         inputs_normalized = self.pre_attention_norm(x)
-        attn_output, kv_cache = self.attn(
-            inputs_normalized, positions, attn_mask, kv_cache, decode, deterministic
-        )
+        attn_output, kv_cache = self.attn(inputs_normalized, positions, attn_mask, kv_cache, decode, deterministic)
         attn_output = self.drop(attn_output, deterministic)
         attn_output += x
         residual = attn_output
@@ -283,9 +275,7 @@ class Block(nn.Module):
         return outputs, kv_cache
 
 
-KVCache: TypeAlias = tuple[
-    at.Int[at.Array, " b"], at.Float[at.Array, "b _t _k _h"], at.Float[at.Array, "b _t _v _h"]
-]
+KVCache: TypeAlias = tuple[at.Int[at.Array, " b"], at.Float[at.Array, "b _t _k _h"], at.Float[at.Array, "b _t _v _h"]]
 
 
 @at.typecheck
@@ -310,9 +300,7 @@ class Module(nn.Module):
 
     scan: bool = False
     remat_policy: str = "none"
-    lora_configs: ml_collections.ConfigDict = dataclasses.field(
-        default_factory=ml_collections.ConfigDict
-    )
+    lora_configs: ml_collections.ConfigDict = dataclasses.field(default_factory=ml_collections.ConfigDict)
 
     @nn.compact
     def __call__(

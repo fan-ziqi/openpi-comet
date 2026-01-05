@@ -26,17 +26,11 @@ def get_action(idx: int):
     data = ds[idx]
     gt_action = data["action"]
     example = {
-        "robot_r1::robot_r1:zed_link:Camera:0::rgb": data["observation.images.rgb.head"]
+        "robot_r1::robot_r1:zed_link:Camera:0::rgb": data["observation.images.rgb.head"].permute(1, 2, 0).numpy(),
+        "robot_r1::robot_r1:left_realsense_link:Camera:0::rgb": data["observation.images.rgb.left_wrist"]
         .permute(1, 2, 0)
         .numpy(),
-        "robot_r1::robot_r1:left_realsense_link:Camera:0::rgb": data[
-            "observation.images.rgb.left_wrist"
-        ]
-        .permute(1, 2, 0)
-        .numpy(),
-        "robot_r1::robot_r1:right_realsense_link:Camera:0::rgb": data[
-            "observation.images.rgb.right_wrist"
-        ]
+        "robot_r1::robot_r1:right_realsense_link:Camera:0::rgb": data["observation.images.rgb.right_wrist"]
         .permute(1, 2, 0)
         .numpy(),
         "robot_r1::proprio": data["observation.state"],

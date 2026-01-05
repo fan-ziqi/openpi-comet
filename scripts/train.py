@@ -45,9 +45,7 @@ def init_logging():
     logger.handlers[0].setFormatter(formatter)
 
 
-def init_wandb(
-    config: _config.TrainConfig, *, resuming: bool, log_code: bool = False, enabled: bool = True
-):
+def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = False, enabled: bool = True):
     if not enabled:
         wandb.init(mode="disabled")
         return
@@ -71,22 +69,14 @@ def init_wandb(
         wandb.run.log_code(epath.Path(__file__).parent.parent)
 
 
-def _load_weights_and_validate(
-    loader: _weight_loaders.WeightLoader, params_shape: at.Params
-) -> at.Params:
+def _load_weights_and_validate(loader: _weight_loaders.WeightLoader, params_shape: at.Params) -> at.Params:
     """Loads and validates the weights. Returns a loaded subset of the weights."""
     loaded_params = loader.load(params_shape)
-    at.check_pytree_equality(
-        expected=params_shape, got=loaded_params, check_shapes=True, check_dtypes=True
-    )
+    at.check_pytree_equality(expected=params_shape, got=loaded_params, check_shapes=True, check_dtypes=True)
 
     # Remove jax.ShapeDtypeStruct from the loaded params. This makes sure that only the loaded params are returned.
     return traverse_util.unflatten_dict(
-        {
-            k: v
-            for k, v in traverse_util.flatten_dict(loaded_params).items()
-            if not isinstance(v, jax.ShapeDtypeStruct)
-        }
+        {k: v for k, v in traverse_util.flatten_dict(loaded_params).items() if not isinstance(v, jax.ShapeDtypeStruct)}
     )
 
 
@@ -96,9 +86,7 @@ def init_train_state(
 ) -> tuple[training_utils.TrainState, Any]:
     tx = _optimizer.create_optimizer(config.optimizer, config.lr_schedule, weight_decay_mask=None)
 
-    def init(
-        rng: at.KeyArrayLike, partial_params: at.Params | None = None
-    ) -> training_utils.TrainState:
+    def init(rng: at.KeyArrayLike, partial_params: at.Params | None = None) -> training_utils.TrainState:
         rng, model_rng = jax.random.split(rng)
         # initialize the model (and its parameters).
         model = config.model.create(model_rng)
@@ -112,9 +100,7 @@ def init_train_state(
 
         params = nnx.state(model)
         # Convert frozen params to bfloat16.
-        params = nnx_utils.state_map(
-            params, config.freeze_filter, lambda p: p.replace(p.value.astype(jnp.bfloat16))
-        )
+        params = nnx_utils.state_map(params, config.freeze_filter, lambda p: p.replace(p.value.astype(jnp.bfloat16)))
 
         return training_utils.TrainState(
             step=0,
@@ -132,9 +118,7 @@ def init_train_state(
     if resume:
         return train_state_shape, state_sharding
 
-    partial_params = _load_weights_and_validate(
-        config.weight_loader, train_state_shape.params.to_pure_dict()
-    )
+    partial_params = _load_weights_and_validate(config.weight_loader, train_state_shape.params.to_pure_dict())
     replicated_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec())
 
     # Initialize the train state and mix in the partial params.
@@ -173,9 +157,7 @@ def train_step(
 
     # Filter out frozen params.
     diff_state = nnx.DiffState(0, config.trainable_filter)
-    loss, grads = nnx.value_and_grad(loss_fn, argnums=diff_state)(
-        model, train_rng, observation, actions
-    )
+    loss, grads = nnx.value_and_grad(loss_fn, argnums=diff_state)(model, train_rng, observation, actions)
 
     params = state.params.filter(config.trainable_filter)
     updates, new_opt_state = state.tx.update(grads, state.opt_state, params)
@@ -185,9 +167,7 @@ def train_step(
     nnx.update(model, new_params)
     new_params = nnx.state(model)
 
-    new_state = dataclasses.replace(
-        state, step=state.step + 1, params=new_params, opt_state=new_opt_state
-    )
+    new_state = dataclasses.replace(state, step=state.step + 1, params=new_params, opt_state=new_opt_state)
     if state.ema_decay is not None:
         new_state = dataclasses.replace(
             new_state,
@@ -254,9 +234,7 @@ def main(config: _config.TrainConfig):
 
     train_state, train_state_sharding = init_train_state(config, init_rng, mesh, resume=resuming)
     jax.block_until_ready(train_state)
-    logging.info(
-        f"Initialized train state:\n{training_utils.array_tree_to_info(train_state.params)}"
-    )
+    logging.info(f"Initialized train state:\n{training_utils.array_tree_to_info(train_state.params)}")
 
     if resuming:
         train_state = _checkpoints.restore_state(checkpoint_manager, train_state, data_loader)
@@ -290,9 +268,7 @@ def main(config: _config.TrainConfig):
             infos = []
         batch = next(data_iter)
 
-        if (
-            step % config.save_interval == 0 and step > start_step
-        ) or step == config.num_train_steps - 1:
+        if (step % config.save_interval == 0 and step > start_step) or step == config.num_train_steps - 1:
             _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
 
     logging.info("Waiting for checkpoint manager to finish")

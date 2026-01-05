@@ -64,7 +64,7 @@ class Args:
     fine_grained_level: int = 0
 
     # Specifies the control mode of the policy.
-    control_mode: str = "receeding_horizon" # receeding_horizon | temporal_ensemble | receeding_temporal
+    control_mode: str = "receeding_horizon"  # receeding_horizon | temporal_ensemble | receeding_temporal
 
     # Specifies the action horizon of the policy.
     max_len: int = 32  # receeding horizon | receeding temporal mode

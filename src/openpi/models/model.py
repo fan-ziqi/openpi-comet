@@ -89,16 +89,16 @@ class Observation(Generic[ArrayT]):
 
     # Images, in [-1, 1] float32.
     images: dict[str, at.Float[ArrayT, "*b h w c"]]
-    
+
     # Image masks, with same keys as images.
     image_masks: dict[str, at.Bool[ArrayT, "*b"]]
-    
+
     # Low-dimensional robot state.
     state: at.Float[ArrayT, "*b s"]
 
     # Tokenized prompt.
     tokenized_prompt: at.Int[ArrayT, "*b l"] | None = None
-    
+
     # Tokenized prompt mask.
     tokenized_prompt_mask: at.Bool[ArrayT, "*b l"] | None = None
 
@@ -106,7 +106,7 @@ class Observation(Generic[ArrayT]):
 
     # Token auto-regressive mask (for FAST autoregressive model).
     token_ar_mask: at.Int[ArrayT, "*b l"] | None = None
-    
+
     # Token loss mask (for FAST autoregressive model).
     token_loss_mask: at.Bool[ArrayT, "*b l"] | None = None
 
@@ -118,17 +118,13 @@ class Observation(Generic[ArrayT]):
         """This method defines the mapping between unstructured data (i.e., nested dict) to the structured Observation format."""
         # Ensure that tokenized_prompt and tokenized_prompt_mask are provided together.
         if ("tokenized_prompt" in data) != ("tokenized_prompt_mask" in data):
-            raise ValueError(
-                "tokenized_prompt and tokenized_prompt_mask must be provided together."
-            )
+            raise ValueError("tokenized_prompt and tokenized_prompt_mask must be provided together.")
         # If images are uint8, convert them to [-1, 1] float32.
         for key in data["image"]:
             if data["image"][key].dtype == np.uint8:
                 data["image"][key] = data["image"][key].astype(np.float32) / 255.0 * 2.0 - 1.0
             elif hasattr(data["image"][key], "dtype") and data["image"][key].dtype == torch.uint8:
-                data["image"][key] = (
-                    data["image"][key].to(torch.float32).permute(0, 3, 1, 2) / 255.0 * 2.0 - 1.0
-                )
+                data["image"][key] = data["image"][key].to(torch.float32).permute(0, 3, 1, 2) / 255.0 * 2.0 - 1.0
         return cls(
             images=data["image"],
             image_masks=data["image_mask"],
@@ -166,9 +162,7 @@ def preprocess_observation(
     """
 
     if not set(image_keys).issubset(observation.images):
-        raise ValueError(
-            f"images dict missing keys: expected {image_keys}, got {list(observation.images)}"
-        )
+        raise ValueError(f"images dict missing keys: expected {image_keys}, got {list(observation.images)}")
 
     batch_shape = observation.state.shape[:-1]
 
@@ -251,9 +245,7 @@ class BaseModelConfig(abc.ABC):
         graphdef, state = nnx.split(model)
         if remove_extra_params:
             params = ocp.transform_utils.intersect_trees(state.to_pure_dict(), params)
-        at.check_pytree_equality(
-            expected=state.to_pure_dict(), got=params, check_shapes=True, check_dtypes=False
-        )
+        at.check_pytree_equality(expected=state.to_pure_dict(), got=params, check_shapes=True, check_dtypes=False)
         state.replace_by_pure_dict(params)
         return nnx.merge(graphdef, state)
 
@@ -297,9 +289,7 @@ class BaseModel(nnx.Module, abc.ABC):
     ) -> at.Float[at.Array, "*b ah"]: ...
 
     @abc.abstractmethod
-    def sample_actions(
-        self, rng: at.KeyArrayLike, observation: Observation, **kwargs
-    ) -> Actions: ...
+    def sample_actions(self, rng: at.KeyArrayLike, observation: Observation, **kwargs) -> Actions: ...
 
 
 def restore_params(
@@ -323,11 +313,7 @@ def restore_params(
     Returns:
         The restored params.
     """
-    params_path = (
-        pathlib.Path(params_path).resolve()
-        if not str(params_path).startswith("gs://")
-        else params_path
-    )
+    params_path = pathlib.Path(params_path).resolve() if not str(params_path).startswith("gs://") else params_path
 
     if restore_type is jax.Array and sharding is None:
         mesh = jax.sharding.Mesh(jax.devices(), ("x",))
@@ -342,9 +328,7 @@ def restore_params(
             ocp.args.PyTreeRestore(
                 item=item,
                 restore_args=jax.tree.map(
-                    lambda _: ocp.ArrayRestoreArgs(
-                        sharding=sharding, restore_type=restore_type, dtype=dtype
-                    ),
+                    lambda _: ocp.ArrayRestoreArgs(sharding=sharding, restore_type=restore_type, dtype=dtype),
                     item,
                 ),
             ),

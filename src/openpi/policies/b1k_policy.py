@@ -16,8 +16,9 @@ CAMERA_INTRINSICS = {
     ),  # 480x480
     "right_wrist": np.array(
         [[388.6639, 0.0, 240.0], [0.0, 388.6639, 240.0], [0.0, 0.0, 1.0]], dtype=np.float32
-    )  # 480x480
+    ),  # 480x480
 }
+
 
 def make_b1k_example() -> dict:
     """Creates a random input example for the Droid policy."""
@@ -29,6 +30,7 @@ def make_b1k_example() -> dict:
         "prompt": "do something",
     }
 
+
 def extract_state_from_proprio(proprio_data):
     """
     We assume perfect correlation for the two gripper fingers.
@@ -38,17 +40,25 @@ def extract_state_from_proprio(proprio_data):
     trunk_qpos = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["trunk_qpos"]]  # 4
     arm_left_qpos = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["arm_left_qpos"]]  #  7
     arm_right_qpos = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["arm_right_qpos"]]  #  7
-    left_gripper_width = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["gripper_left_qpos"]].sum(axis=-1, keepdims=True)  # 1
-    right_gripper_width = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["gripper_right_qpos"]].sum(axis=-1, keepdims=True)  # 1
-    return np.concatenate([
-        base_qvel,
-        trunk_qpos,
-        arm_left_qpos,
-        # left_gripper_width,
-        arm_right_qpos,
-        left_gripper_width, # NOTE: we rearrange the gripper from 21 to 14 to match the action space
-        right_gripper_width,
-    ], axis=-1)
+    left_gripper_width = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["gripper_left_qpos"]].sum(
+        axis=-1, keepdims=True
+    )  # 1
+    right_gripper_width = proprio_data[..., PROPRIOCEPTION_INDICES["R1Pro"]["gripper_right_qpos"]].sum(
+        axis=-1, keepdims=True
+    )  # 1
+    return np.concatenate(
+        [
+            base_qvel,
+            trunk_qpos,
+            arm_left_qpos,
+            # left_gripper_width,
+            arm_right_qpos,
+            left_gripper_width,  # NOTE: we rearrange the gripper from 21 to 14 to match the action space
+            right_gripper_width,
+        ],
+        axis=-1,
+    )
+
 
 def _parse_image(image) -> np.ndarray:
     image = np.asarray(image)
@@ -58,12 +68,14 @@ def _parse_image(image) -> np.ndarray:
         image = einops.rearrange(image, "c h w -> h w c")
     return image
 
+
 def _parse_seg_image(image) -> np.ndarray:
     MAX_SEG = 8
     image = np.asarray(image)
     image = image / MAX_SEG * 255
     image = np.repeat(image[..., np.newaxis], 3, axis=-1)
     return image.astype(np.uint8)
+
 
 def depth_to_pcd(depth_image: np.ndarray, camera_intrinsics: np.ndarray, downsample: int = 6) -> np.ndarray:
     """
@@ -75,10 +87,11 @@ def depth_to_pcd(depth_image: np.ndarray, camera_intrinsics: np.ndarray, downsam
     x = (u - camera_intrinsics[0, 2]) * depth_image / camera_intrinsics[0, 0]
     y = (v - camera_intrinsics[1, 2]) * depth_image / camera_intrinsics[1, 1]
     z = depth_image
-    pcd_xyz = np.stack([x, y, z], axis=-1) # (h, w, 3)
+    pcd_xyz = np.stack([x, y, z], axis=-1)  # (h, w, 3)
 
     pcd_xyz = pcd_xyz[::downsample, ::downsample].reshape(16, -1, 3)
-    return pcd_xyz # (16, 2025, 3)
+    return pcd_xyz  # (16, 2025, 3)
+
 
 @dataclasses.dataclass(frozen=True)
 class B1kInputs(transforms.DataTransformFn):
@@ -95,12 +108,11 @@ class B1kInputs(transforms.DataTransformFn):
     pcd_downsample: int = 6
 
     def __call__(self, data: dict) -> dict:
-
         proprio_data = data["observation/state"]
         # extract joint position
         state = extract_state_from_proprio(proprio_data)
         if "actions" in data:
-            action =  data["actions"]
+            action = data["actions"]
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
         # stores as float32 (C,H,W), gets skipped for policy inference
@@ -156,6 +168,7 @@ class B1kInputs(transforms.DataTransformFn):
 @dataclasses.dataclass(frozen=True)
 class B1kOutputs(transforms.DataTransformFn):
     action_dim: int = 23
+
     def __call__(self, data: dict) -> dict:
         # Only return the first 23 dims.
-        return {"actions": np.asarray(data["actions"][:, :self.action_dim])}
+        return {"actions": np.asarray(data["actions"][:, : self.action_dim])}

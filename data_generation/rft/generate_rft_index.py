@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+from collections.abc import Iterator
 import json
 from pathlib import Path
-from typing import Dict, Iterator, Optional, Tuple
 
 
-def load_task_mapping(tasks_jsonl_path: Path) -> Dict[str, int]:
+def load_task_mapping(tasks_jsonl_path: Path) -> dict[str, int]:
     mapping = {}
     with tasks_jsonl_path.open("r") as f:
         for line in f:
@@ -15,7 +15,7 @@ def load_task_mapping(tasks_jsonl_path: Path) -> Dict[str, int]:
     return mapping
 
 
-def get_task_name(exp_dir: Path) -> Optional[str]:
+def get_task_name(exp_dir: Path) -> str | None:
     """Parse task_name from cfg*.out file located directly under exp_dir."""
     for cfg_file in sorted(exp_dir.glob("cfg*.out")):
         try:
@@ -35,7 +35,7 @@ def is_valid_run(run_dir: Path) -> bool:
     return npz_path.is_file() and npz_path.stat().st_size > 0
 
 
-def find_runs(root_dir: Path) -> Iterator[Tuple[str, str, str, Path]]:
+def find_runs(root_dir: Path) -> Iterator[tuple[str, str, str, Path]]:
     """
     Yields (date_dir_name, exp_name, run_name, run_dir_path).
     Supports two structures:
@@ -63,14 +63,12 @@ def find_runs(root_dir: Path) -> Iterator[Tuple[str, str, str, Path]]:
             yield root_dir.name, exp_dir.name, run_path.name, run_path
 
 
-def scan_existing_indices(
-    output_dir: Path, exclude_file: Optional[Path], prefix: str = "rollouts"
-) -> Dict[int, int]:
+def scan_existing_indices(output_dir: Path, exclude_file: Path | None, prefix: str = "rollouts") -> dict[int, int]:
     """
     Scans existing JSONL files to find the maximum episode index for each task base.
     Returns {base_id: max_current_index}.
     """
-    base_max_map: Dict[int, int] = {}
+    base_max_map: dict[int, int] = {}
     if not output_dir.is_dir():
         return base_max_map
 
@@ -89,18 +87,18 @@ def scan_existing_indices(
                     parts = line.rsplit(" ", 1)
                     if len(parts) != 2:
                         continue
-                    
+
                     episode_id_str = parts[1]
                     if not episode_id_str.isdigit() or len(episode_id_str) < 4:
                         continue
-                    
+
                     eid = int(episode_id_str)
                     base = eid // 10000
                     idx = eid % 10000
                     base_max_map[base] = max(base_max_map.get(base, -1), idx)
         except Exception:
             continue
-            
+
     return base_max_map
 
 
@@ -152,7 +150,7 @@ def main():
     new_lines = []
     # Deduplicate by relative path key to match original logic logic
     processed_rels = set()
-    
+
     for date_name, exp_name, run_name, run_path in valid_runs:
         rel_key = f"{date_name}/{exp_name}/{run_name}"
         if rel_key in processed_rels:
@@ -161,7 +159,7 @@ def main():
 
         exp_dir = run_path.parent.parent
         task_name = exp_to_task.get(exp_dir)
-        
+
         if not task_name or task_name not in task_map:
             # Skip if task name not found or not in mapping
             continue

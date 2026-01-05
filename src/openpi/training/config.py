@@ -160,12 +160,8 @@ class ModelTransformFactory(GroupFactory):
             meta_output_transforms.append(_transforms.AbsoluteActions(delta_action_mask))
 
         if self.rearrange_action_indices is not None:
-            meta_input_transforms.append(
-                _transforms.ArrangeStateActions(indices=self.rearrange_action_indices)
-            )
-            meta_output_transforms.append(
-                _transforms.RearrangeStateActions(indices=self.rearrange_action_indices)
-            )
+            meta_input_transforms.append(_transforms.ArrangeStateActions(indices=self.rearrange_action_indices))
+            meta_output_transforms.append(_transforms.RearrangeStateActions(indices=self.rearrange_action_indices))
 
         match model_config.model_type:
             case _model.ModelType.PI0:
@@ -207,9 +203,7 @@ class ModelTransformFactory(GroupFactory):
                     else model_config.fast_model_tokenizer
                 )
                 tokenizer_kwargs = (
-                    {}
-                    if model_config.fast_model_tokenizer_kwargs is None
-                    else model_config.fast_model_tokenizer_kwargs
+                    {} if model_config.fast_model_tokenizer_kwargs is None else model_config.fast_model_tokenizer_kwargs
                 )
                 return _transforms.Group(
                     inputs=[
@@ -246,24 +240,18 @@ class DataConfigFactory(abc.ABC):
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         """Create a data config."""
 
-    def create_base_config(
-        self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig
-    ) -> DataConfig:
+    def create_base_config(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         repo_id = self.repo_id if self.repo_id is not tyro.MISSING else None
         asset_id = self.assets.asset_id or repo_id
         return dataclasses.replace(
             self.base_config or DataConfig(),
             repo_id=repo_id,
             asset_id=asset_id,
-            norm_stats=self._load_norm_stats(
-                epath.Path(self.assets.assets_dir or assets_dirs), asset_id
-            ),
+            norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id),
             use_quantile_norm=model_config.model_type != ModelType.PI0,
         )
 
-    def _load_norm_stats(
-        self, assets_dir: epath.Path, asset_id: str | None
-    ) -> dict[str, _transforms.NormStats] | None:
+    def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
         try:
@@ -318,11 +306,7 @@ class LeRobotB1KDataConfig(DataConfigFactory):
         # Prepare data for policy training
         # Convert images to uint8 numpy arrays, add masks
         data_transforms = _transforms.Group(
-            inputs=[
-                b1k_policy.B1kInputs(
-                    action_dim=model_config.action_dim, model_type=model_config.model_type
-                )
-            ],
+            inputs=[b1k_policy.B1kInputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
             outputs=[b1k_policy.B1kOutputs(action_dim=23)],
         )
 
@@ -524,9 +508,7 @@ class TrainConfig:
     model: _model.BaseModelConfig = dataclasses.field(default_factory=pi0_config.Pi0Config)
 
     # A weight loader can optionally load (possibly partial) weights from disk after the model is initialized.
-    weight_loader: weight_loaders.WeightLoader = dataclasses.field(
-        default_factory=weight_loaders.NoOpWeightLoader
-    )
+    weight_loader: weight_loaders.WeightLoader = dataclasses.field(default_factory=weight_loaders.NoOpWeightLoader)
 
     # Optional path to a PyTorch checkpoint to load weights from.
     pytorch_weight_path: str | None = None
@@ -535,9 +517,7 @@ class TrainConfig:
     pytorch_training_precision: Literal["bfloat16", "float32"] = "bfloat16"
 
     # Learning rate schedule to use for training.
-    lr_schedule: _optimizer.LRScheduleConfig = dataclasses.field(
-        default_factory=_optimizer.CosineDecaySchedule
-    )
+    lr_schedule: _optimizer.LRScheduleConfig = dataclasses.field(default_factory=_optimizer.CosineDecaySchedule)
 
     # Optimizer to use for training.
     optimizer: _optimizer.OptimizerConfig = dataclasses.field(default_factory=_optimizer.AdamW)
@@ -657,9 +637,7 @@ _CONFIGS = [
                 fine_grained_level=0,  # 0, 1, 2
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(
-            "gs://openpi-assets/checkpoints/pi05_base/params"
-        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=30_000,
         lr_schedule=_optimizer.CosineDecaySchedule(
             peak_lr=2.5e-5,
@@ -686,9 +664,7 @@ _CONFIGS = [
                 fine_grained_level=0,  # 0, 1, 2
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(
-            "gs://openpi-assets/checkpoints/pi05_base/params"
-        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=30_000,
         lr_schedule=_optimizer.CosineDecaySchedule(
             peak_lr=2.5e-5,
@@ -729,9 +705,7 @@ _CONFIGS = [
                 fine_grained_level=0,  # 0, 1, 2
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(
-            "gs://openpi-assets/checkpoints/pi05_base/params"
-        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=50_000,
         lr_schedule=_optimizer.CosineDecaySchedule(
             peak_lr=2.5e-5,
@@ -758,9 +732,7 @@ _CONFIGS = [
                 fine_grained_level=0,  # 0, 1, 2
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(
-            "gs://openpi-assets/checkpoints/pi05_base/params"
-        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=50_000,
         lr_schedule=_optimizer.CosineDecaySchedule(
             peak_lr=2.5e-5,
@@ -788,7 +760,9 @@ _CONFIGS = [
                 fine_grained_level=0,  # 0, 1, 2
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("sunshk/openpi_comet/pi05-b1kpt50-cs32"), # hf download in advance
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "sunshk/openpi_comet/pi05-b1kpt50-cs32"
+        ),  # hf download in advance
         num_train_steps=20_000,
         lr_schedule=_optimizer.CosineDecaySchedule(
             peak_lr=2.5e-6,
@@ -829,41 +803,43 @@ _CONFIGS = [
     ),
     # 4. Multi-dataset Training Configs
     TrainConfig(
-    name="pi05-b1k-demo0_6-comet0_4-step20k",
-    exp_name="openpi",
-    project_name="B1K",
-    model=pi0_config.Pi0Config(pi05=True, action_horizon=32),
-    sample_weights=[0.6, 0.4],
-    data=[
-        LeRobotB1KDataConfig(
-            repo_id="behavior-1k/2025-challenge-demos",
-            base_config=DataConfig(
-                prompt_from_task=True,
-                behavior_dataset_root="../DATASETS/behavior/2025-challenge-demos",
-                fine_grained_level=0,  # 0, 1, 2
+        name="pi05-b1k-demo0_6-comet0_4-step20k",
+        exp_name="openpi",
+        project_name="B1K",
+        model=pi0_config.Pi0Config(pi05=True, action_horizon=32),
+        sample_weights=[0.6, 0.4],
+        data=[
+            LeRobotB1KDataConfig(
+                repo_id="behavior-1k/2025-challenge-demos",
+                base_config=DataConfig(
+                    prompt_from_task=True,
+                    behavior_dataset_root="../DATASETS/behavior/2025-challenge-demos",
+                    fine_grained_level=0,  # 0, 1, 2
+                ),
             ),
-        ),
-        LeRobotB1KDataConfig(
-            repo_id="rft-debug/comet-val-v2",
-            base_config=DataConfig(
-                prompt_from_task=True,
-                behavior_dataset_root="../DATASETS/behavior/comet-1.5k",
-                fine_grained_level=0,  # 0, 1, 2
+            LeRobotB1KDataConfig(
+                repo_id="rft-debug/comet-val-v2",
+                base_config=DataConfig(
+                    prompt_from_task=True,
+                    behavior_dataset_root="../DATASETS/behavior/comet-1.5k",
+                    fine_grained_level=0,  # 0, 1, 2
+                ),
             ),
+        ],
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "sunshk/openpi_comet/pi05-b1kpt50-cs32"
+        ),  # hf download in advance
+        num_train_steps=20_000,
+        s=_optimizer.CosineDecaySchedule(
+            peak_lr=1e-6,
+            decay_steps=20_000,
         ),
-    ],
-    weight_loader=weight_loaders.CheckpointWeightLoader("sunshk/openpi_comet/pi05-b1kpt50-cs32"), # hf download in advance
-    num_train_steps=20_000,
-    s=_optimizer.CosineDecaySchedule(
-        peak_lr=1e-6,
-        decay_steps=20_000,
-    ),
-    freeze_filter=pi0_config.Pi0Config(pi05=True, action_horizon=32).get_freeze_filter(),
-    ema_decay=None,
-    assets_base_dir="./outputs/assets",
-    checkpoint_base_dir=".",
-    num_workers=8,
-    batch_size=8 * 32,
+        freeze_filter=pi0_config.Pi0Config(pi05=True, action_horizon=32).get_freeze_filter(),
+        ema_decay=None,
+        assets_base_dir="./outputs/assets",
+        checkpoint_base_dir=".",
+        num_workers=8,
+        batch_size=8 * 32,
     ),
 ]
 

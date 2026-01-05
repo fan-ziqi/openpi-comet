@@ -103,12 +103,14 @@ class Pi0(_model.BaseModel):
 
         if self.pcd:
             pointnet_config = _pointnet.get_config(config.pointnet_variant)
-            self.pointnet = nnx_bridge.ToNNX(_pointnet.UncoloredPointNet(
+            self.pointnet = nnx_bridge.ToNNX(
+                _pointnet.UncoloredPointNet(
                     n_coordinates=pointnet_config.n_coordinates,
                     output_dim=pointnet_config.output_dim,
                     hidden_dim=pointnet_config.hidden_dim,
                     hidden_depth=pointnet_config.hidden_depth,
-                ))
+                )
+            )
             self.pointnet.lazy_init(config.fake_obs().pcd_xyz, rngs=rngs)
 
         # This attribute gets automatically set by model.train() and model.eval().
@@ -146,7 +148,7 @@ class Pi0(_model.BaseModel):
 
         # add point cloud
         if self.pcd:
-            pcd_tokens = self.pointnet(obs.pcd_xyz) # (b s=16 2048)
+            pcd_tokens = self.pointnet(obs.pcd_xyz)  # (b s=16 2048)
             tokens.append(pcd_tokens)
             input_mask.append(jnp.ones(pcd_tokens.shape[:2], dtype=jnp.bool_))
             ar_mask += [False] * pcd_tokens.shape[1]

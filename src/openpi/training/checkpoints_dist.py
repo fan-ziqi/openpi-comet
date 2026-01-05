@@ -6,10 +6,8 @@ from typing import Protocol
 
 from etils import epath
 import jax
-from jax.experimental import multihost_utils
 import numpy as np
 import orbax.checkpoint as ocp
-import orbax.checkpoint.future as future
 from orbax.checkpoint import type_handlers
 
 from openpi.shared import array_typing as at
@@ -19,7 +17,11 @@ import openpi.training.utils as training_utils
 
 
 def initialize_checkpoint_dir(
-    checkpoint_dir: epath.Path | str, *, keep_period: int | None, overwrite: bool, resume: bool,
+    checkpoint_dir: epath.Path | str,
+    *,
+    keep_period: int | None,
+    overwrite: bool,
+    resume: bool,
 ) -> tuple[ocp.CheckpointManager, bool]:
     checkpoint_dir = epath.Path(checkpoint_dir).resolve()
     resuming = False
@@ -48,20 +50,12 @@ def initialize_checkpoint_dir(
         (bytes, type_handlers.ScalarHandler()),
         (np.number, type_handlers.ScalarHandler()),
         (np.ndarray, type_handlers.NumpyHandler()),
-        (jax.Array, type_handlers.ArrayHandler(
-            array_metadata_store=None
-        )),
+        (jax.Array, type_handlers.ArrayHandler(array_metadata_store=None)),
         (str, type_handlers.StringHandler()),
     )
 
-    train_state_handler = ocp.PyTreeCheckpointHandler(
-        use_ocdbt=False,
-        type_handler_registry=custom_registry
-    )
-    params_handler = ocp.PyTreeCheckpointHandler(
-        use_ocdbt=False,
-        type_handler_registry=custom_registry
-    )
+    train_state_handler = ocp.PyTreeCheckpointHandler(use_ocdbt=False, type_handler_registry=custom_registry)
+    params_handler = ocp.PyTreeCheckpointHandler(use_ocdbt=False, type_handler_registry=custom_registry)
 
     logging.info(f"use_ocdbt(train_state)={getattr(train_state_handler, 'use_ocdbt', None)}")
     logging.info(f"use_ocdbt(params)={getattr(params_handler, 'use_ocdbt', None)}")
@@ -114,7 +108,7 @@ def save_state(
         "train_state": train_state,
         "params": {"params": params},
     }
-    
+
     # Log checkpoint saving info based on mode
     if jax.process_index() == 0:
         logging.info(f"Saving checkpoint at step {step} (synchronous mode)...")

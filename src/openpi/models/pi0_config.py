@@ -37,7 +37,6 @@ class Pi0Config(_model.BaseModelConfig):
     # whether to use pointnet to encode the point cloud
     pcd: bool = False
 
-
     def __post_init__(self):
         if self.max_token_len is None:
             object.__setattr__(self, "max_token_len", 200 if self.pi05 else 48)
